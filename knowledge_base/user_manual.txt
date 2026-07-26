@@ -1,0 +1,85 @@
+TechMart Electronics - Quick User Manual and Troubleshooting Guide
+
+Version: 1.0
+
+1. Device Setup Instructions
+Step 1: Unbox safely
+- Verify all accessories are included: charger, cable, quick-start guide, and warranty card.
+
+Step 2: Charge before first use
+- Connect the original charger and charge device to at least 50 percent before setup.
+
+Step 3: Power on and initial configuration
+- Press and hold power button for 3-5 seconds.
+- Choose language, region, date/time, and accessibility preferences.
+
+Step 4: Connect to WiFi
+- Select your home/office network and enter password.
+- Confirm internet connection before account setup.
+
+Step 5: Sign in and secure device
+- Sign in using your account.
+- Set a strong screen lock PIN/password and enable biometric unlock if available.
+
+Step 6: System update
+- Go to Settings > Software Update and install latest updates.
+
+2. Common Troubleshooting
+
+A) Device will not turn on
+- Charge device for at least 20 minutes using original adapter and cable.
+- Try a different wall socket and verify cable condition.
+- Press and hold power button for 10-15 seconds.
+- If still not responding, perform a force restart as per model instructions.
+
+B) Forgot password or PIN
+- Use Forgot Password/PIN option on lock screen if supported.
+- Authenticate via recovery email/phone/account credentials.
+- If locked out completely, use official account recovery portal.
+- Last resort: factory reset (data may be erased).
+
+C) Slow performance
+- Restart device and close unused background apps.
+- Free storage space (recommended at least 20 percent free).
+- Remove unnecessary startup apps and cache-heavy files.
+- Update software and critical apps to latest versions.
+
+D) Battery draining fast
+- Reduce screen brightness and timeout duration.
+- Disable GPS, Bluetooth, and hotspot when not needed.
+- Check Battery Usage for high-drain apps and restrict background activity.
+- Avoid extreme temperatures during charging and usage.
+
+E) WiFi connectivity issues
+- Toggle WiFi off/on and restart router.
+- Forget network and reconnect with correct password.
+- Move closer to router and avoid interference zones.
+- Reset network settings if issue persists.
+
+3. Factory Reset Instructions
+Warning: Factory reset erases all personal data unless backed up.
+
+Step-by-step:
+- Backup contacts, photos, documents, and app data.
+- Go to Settings > System > Reset Options.
+- Select Erase all data (Factory reset).
+- Confirm with PIN/password and continue.
+- Wait for reboot and complete initial setup again.
+
+4. Customer Support Escalation Steps
+Level 1: Self-help
+- Use this manual and FAQ resources.
+
+Level 2: Standard support
+- Contact support@techmart.in or call 1800-XXX-XXXX with order ID and device serial number.
+
+Level 3: Technical specialist escalation
+- If unresolved after first response, request escalation with previous ticket reference and troubleshooting steps already attempted.
+
+Level 4: Priority grievance handling
+- For repeated unresolved issues, request manager review through official escalation channel.
+
+5. Support Contact
+Email: support@techmart.in
+Phone: 1800-XXX-XXXX
+Hours: Monday to Saturday, 9:00 AM to 6:00 PM IST
