@@ -8,6 +8,7 @@ from groq import (
     APIError,
     AuthenticationError,
     BadRequestError,
+    NotFoundError,
     RateLimitError,
     APITimeoutError,
     InternalServerError,
@@ -126,14 +127,14 @@ class GroqClient:
                 )
                 return _MSG_AUTH_ERROR
 
-            except BadRequestError as e:
+            except (BadRequestError, NotFoundError) as e:
                 error_msg = str(e)
                 logger.error(
-                    "Groq bad request error [%s]: %s (NOT retrying)",
+                    "Groq bad request/not found error [%s]: %s (NOT retrying)",
                     method_name,
                     error_msg,
                 )
-                if "decommissioned" in error_msg.lower() or "model" in error_msg.lower():
+                if "model" in error_msg.lower() or "not found" in error_msg.lower() or "decommissioned" in error_msg.lower():
                     return _MSG_MODEL_ERROR.format(self.model)
                 return _MSG_UNKNOWN_ERROR
 

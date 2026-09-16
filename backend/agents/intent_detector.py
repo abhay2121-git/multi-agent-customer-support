@@ -51,11 +51,12 @@ def detect_intent(message: str) -> list[str]:
     response = groq_client.classify(prompt, INTENTS)
     
     try:
-        if response.startswith("```json"):
-            response = response.replace("```json", "", 1)
-        if response.endswith("```"):
-            response = response.replace("```", "")
-        response = response.strip()
+        import re
+        match = re.search(r'\[.*?\]', response, re.DOTALL)
+        if match:
+            response = match.group(0)
+        else:
+            response = response.strip()
         
         detected_intents = json.loads(response)
         if not isinstance(detected_intents, list):

@@ -33,29 +33,37 @@ async def lifespan(app: FastAPI):
     # Validate configuration
     validate_settings()
 
-    # Create database tables
+    # 1. Create database tables
     Base.metadata.create_all(bind=engine)
     logger.info("Database tables created/verified.")
 
-    # Attempt to pre-load FAISS index (non-blocking)
+    # 2 & 3. Load FAISS index or auto-run build_index pipeline
     try:
         from backend.rag.retriever import vector_store
-        if vector_store.load_index():
-            logger.info("FAISS index pre-loaded at startup.")
-        else:
-            logger.warning(
-                "FAISS index not found at startup. "
-                "It will be auto-built on first retrieval request, or you can run: "
-                "python -m backend.rag.build_index"
-            )
+        if not vector_store.load_index():
+            logger.warning("FAISS index not found at startup. Auto-building index...")
+            from backend.rag.build_index import build_index
+            build_index()
+            vector_store.load_index()
+        # 4. Log "RAG pipeline ready" when done
+        logger.info("RAG pipeline ready")
     except Exception as e:
-        logger.warning("Could not pre-load FAISS index: %s", e)
+        logger.error("Error setting up RAG pipeline: %s", e)
+
+    # 5. Log "All agents initialized"
+    try:
+        from backend.agents.router import AGENT_MAP
+        logger.info("All agents initialized: %s", list(AGENT_MAP.keys()))
+    except Exception as e:
+        logger.warning("Could not log agent initialization: %s", e)
 
     # Log registered routes
     for route in app.routes:
         if hasattr(route, "methods") and hasattr(route, "path"):
             logger.info("Route: %s %s", route.methods, route.path)
 
+    # 6. Log server ready message with port
+    logger.info("Server ready on http://0.0.0.0:8000")
     logger.info("Startup complete.")
     yield
     # --- Shutdown ---
@@ -73,7 +81,7 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for development
+    allow_origins=settings.ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

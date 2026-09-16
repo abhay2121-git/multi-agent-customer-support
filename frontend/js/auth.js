@@ -1,143 +1,195 @@
-const API_BASE_URL = "http://localhost:8000";
+const API_URL = 'http://localhost:8000';
 
-function togglePassword(inputId, button) {
+function togglePassword(inputId) {
     const input = document.getElementById(inputId);
-    if (!input) return;
-    const isPassword = input.type === "password";
-    input.type = isPassword ? "text" : "password";
-    if (button) {
-        button.textContent = isPassword ? "Hide" : "Show";
+    const icon = document.querySelector(`#${inputId} ~ button i`);
+    if (input.type === 'password') {
+        input.type = 'text';
+        if(icon) { icon.classList.remove('bi-eye'); icon.classList.add('bi-eye-slash'); }
+    } else {
+        input.type = 'password';
+        if(icon) { icon.classList.remove('bi-eye-slash'); icon.classList.add('bi-eye'); }
     }
-}
-
-function setLoading(buttonId, spinnerId, isLoading) {
-    const button = document.getElementById(buttonId);
-    const spinner = document.getElementById(spinnerId);
-    if (!button || !spinner) return;
-    button.disabled = isLoading;
-    spinner.classList.toggle("d-none", !isLoading);
-}
-
-function showAlert(elementId, message) {
-    const alert = document.getElementById(elementId);
-    if (!alert) return;
-    alert.textContent = message;
-    alert.classList.remove("d-none");
-}
-
-function hideAlert(elementId) {
-    const alert = document.getElementById(elementId);
-    if (!alert) return;
-    alert.classList.add("d-none");
-    alert.textContent = "";
 }
 
 async function login(event) {
     event.preventDefault();
-    hideAlert("login-error");
-    setLoading("login-btn", "login-spinner", true);
-
-    const email = document.getElementById("email")?.value.trim();
-    const password = document.getElementById("password")?.value;
-
+    
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    const btn = document.getElementById('loginBtn');
+    const spinner = document.getElementById('loginSpinner');
+    const errorAlert = document.getElementById('loginError');
+    
+    // Reset state
+    errorAlert.classList.add('d-none');
+    btn.disabled = true;
+    spinner.classList.remove('d-none');
+    
     try {
-        const response = await fetch(API_BASE_URL + "/auth/login", {
-            method: "POST",
+        const response = await fetch(`${API_URL}/auth/login`, {
+            method: 'POST',
             headers: {
-                "Content-Type": "application/json"
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({ email, password })
         });
-
+        
         const data = await response.json();
-        if (!response.ok) {
-            throw new Error(data.detail || "Login failed.");
+        
+        if (response.ok) {
+            localStorage.setItem('techmart_token', data.access_token);
+            localStorage.setItem('techmart_session', data.session_id);
+            localStorage.setItem('techmart_username', data.username);
+            window.location.href = 'chat.html';
+        } else {
+            errorAlert.textContent = data.detail || 'Login failed';
+            errorAlert.classList.remove('d-none');
         }
-
-        localStorage.setItem("techmart_token", data.access_token);
-        localStorage.setItem("techmart_session", data.session_id);
-        window.location.href = "chat.html";
     } catch (error) {
-        showAlert("login-error", error.message || "Login failed.");
+        errorAlert.textContent = 'Network error. Please try again.';
+        errorAlert.classList.remove('d-none');
     } finally {
-        setLoading("login-btn", "login-spinner", false);
+        btn.disabled = false;
+        spinner.classList.add('d-none');
     }
 }
 
-function passwordStrengthLevel(password) {
-    let score = 0;
-    if (password.length >= 8) score += 1;
-    if (/[A-Z]/.test(password)) score += 1;
-    if (/[a-z]/.test(password)) score += 1;
-    if (/[0-9]/.test(password)) score += 1;
-    if (/[^A-Za-z0-9]/.test(password)) score += 1;
-    return score;
+function checkPasswordStrength(password) {
+    let strength = 0;
+    if (password.length >= 8) strength += 1;
+    if (/[0-9]/.test(password)) strength += 1;
+    if (/[^A-Za-z0-9]/.test(password)) strength += 1;
+    
+    if (strength === 0 || password.length === 0) return 'none';
+    if (strength === 1) return 'weak';
+    if (strength === 2) return 'medium';
+    return 'strong';
 }
 
-function updatePasswordStrength(password) {
-    const meter = document.getElementById("strength-fill");
-    const text = document.getElementById("strength-text");
-    if (!meter || !text) return;
-
-    const score = passwordStrengthLevel(password);
-    const levels = [
-        { width: 0, label: "Strength: weak", cls: "bg-danger" },
-        { width: 25, label: "Strength: weak", cls: "bg-danger" },
-        { width: 50, label: "Strength: fair", cls: "bg-warning" },
-        { width: 75, label: "Strength: good", cls: "bg-info" },
-        { width: 100, label: "Strength: strong", cls: "bg-success" },
-        { width: 100, label: "Strength: very strong", cls: "bg-success" }
-    ];
-
-    const selected = levels[score];
-    meter.className = selected.cls;
-    meter.style.width = selected.width + "%";
-    text.textContent = selected.label;
+function updateStrengthMeter(e) {
+    const password = e.target.value;
+    const strength = checkPasswordStrength(password);
+    const meter = document.getElementById('strengthMeter');
+    const text = document.getElementById('strengthText');
+    
+    meter.className = 'progress-bar'; // reset
+    if (strength === 'weak') {
+        meter.classList.add('bg-danger');
+        meter.style.width = '33%';
+        text.textContent = 'Weak';
+        text.className = 'text-danger small';
+    } else if (strength === 'medium') {
+        meter.classList.add('bg-warning');
+        meter.style.width = '66%';
+        text.textContent = 'Medium';
+        text.className = 'text-warning small';
+    } else if (strength === 'strong') {
+        meter.classList.add('bg-success');
+        meter.style.width = '100%';
+        text.textContent = 'Strong';
+        text.className = 'text-success small';
+    } else {
+        meter.style.width = '0%';
+        text.textContent = '';
+    }
 }
 
 async function register(event) {
     event.preventDefault();
-    hideAlert("register-error");
-    hideAlert("register-success");
-    setLoading("register-btn", "register-spinner", true);
-
-    const username = document.getElementById("username")?.value.trim();
-    const email = document.getElementById("register-email")?.value.trim();
-    const password = document.getElementById("register-password")?.value;
-    const confirmPassword = document.getElementById("confirm-password")?.value;
-
-    if (password !== confirmPassword) {
-        showAlert("register-error", "Passwords do not match.");
-        setLoading("register-btn", "register-spinner", false);
+    
+    const username = document.getElementById('username').value;
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+    
+    const btn = document.getElementById('registerBtn');
+    const spinner = document.getElementById('registerSpinner');
+    const errorAlert = document.getElementById('registerError');
+    const successAlert = document.getElementById('registerSuccess');
+    
+    // Reset state
+    errorAlert.classList.add('d-none');
+    successAlert.classList.add('d-none');
+    
+    // Client-side validation
+    if (username.length < 3) {
+        errorAlert.textContent = 'Username must be at least 3 characters.';
+        errorAlert.classList.remove('d-none');
         return;
     }
-
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        errorAlert.textContent = 'Invalid email format.';
+        errorAlert.classList.remove('d-none');
+        return;
+    }
+    
+    if (password.length < 8) {
+        errorAlert.textContent = 'Password must be at least 8 characters.';
+        errorAlert.classList.remove('d-none');
+        return;
+    }
+    
+    if (password !== confirmPassword) {
+        errorAlert.textContent = 'Passwords do not match.';
+        errorAlert.classList.remove('d-none');
+        return;
+    }
+    
+    btn.disabled = true;
+    spinner.classList.remove('d-none');
+    
     try {
-        const response = await fetch(API_BASE_URL + "/auth/register", {
-            method: "POST",
+        const response = await fetch(`${API_URL}/auth/register`, {
+            method: 'POST',
             headers: {
-                "Content-Type": "application/json"
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({ username, email, password })
         });
-
+        
         const data = await response.json();
-        if (!response.ok) {
-            throw new Error(data.detail || "Registration failed.");
+        
+        if (response.ok) {
+            successAlert.textContent = 'Registration successful! Redirecting...';
+            successAlert.classList.remove('d-none');
+            setTimeout(() => {
+                window.location.href = 'login.html';
+            }, 2000);
+        } else {
+            errorAlert.textContent = data.detail || 'Registration failed';
+            errorAlert.classList.remove('d-none');
         }
-
-        showAlert("register-success", "Registration successful. Redirecting to login...");
-        setTimeout(() => {
-            window.location.href = "login.html";
-        }, 2000);
     } catch (error) {
-        showAlert("register-error", error.message || "Registration failed.");
+        errorAlert.textContent = 'Network error. Please try again.';
+        errorAlert.classList.remove('d-none');
     } finally {
-        setLoading("register-btn", "register-spinner", false);
+        if (!successAlert.classList.contains('d-none')) {
+            // Success, leave button disabled while redirecting
+        } else {
+            btn.disabled = false;
+            spinner.classList.add('d-none');
+        }
     }
 }
 
+// On page load for login/register pages
+document.addEventListener('DOMContentLoaded', () => {
+    const token = localStorage.getItem('techmart_token');
+    if (token) {
+        // Simple check, auth_guard does detailed check on chat page
+        window.location.href = 'chat.html';
+    }
+    
+    const passInput = document.getElementById('password');
+    if (passInput && document.getElementById('strengthMeter')) {
+        passInput.addEventListener('input', updateStrengthMeter);
+    }
+});
+
+// For HTML inline access
 window.login = login;
 window.register = register;
 window.togglePassword = togglePassword;
-window.updatePasswordStrength = updatePasswordStrength;
