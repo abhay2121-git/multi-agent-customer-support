@@ -53,3 +53,4 @@ class ChatResponse(BaseModel):
     intent_detected: str
     session_id: str
     timestamp: datetime
+    ticket_number: str | None = None

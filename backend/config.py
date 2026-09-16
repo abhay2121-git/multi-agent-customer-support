@@ -24,9 +24,18 @@ class Settings(BaseSettings):
     FAISS_INDEX_PATH: str = "./vectorstore/faiss_index"
     CHUNK_SIZE: int = 500
     CHUNK_OVERLAP: int = 50
+    ALLOWED_ORIGINS: list[str] = [
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+        "*",
+    ]
 
     class Config:
         env_file = '.env'
+        env_ignore_empty = True
+        extra = 'ignore'
 
 
 settings = Settings()
