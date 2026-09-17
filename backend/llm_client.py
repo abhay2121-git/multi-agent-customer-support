@@ -130,13 +130,27 @@ class GroqClient:
             except (BadRequestError, NotFoundError) as e:
                 error_msg = str(e)
                 logger.error(
-                    "Groq bad request/not found error [%s]: %s (NOT retrying)",
+                    "Groq bad request/not found error [%s]: %s",
                     method_name,
                     error_msg,
                 )
+                if ("model" in error_msg.lower() or "not found" in error_msg.lower() or "decommissioned" in error_msg.lower()) and self.model != "openai/gpt-oss-20b":
+                    logger.info("Attempting auto-fallback from '%s' to 'openai/gpt-oss-20b'...", self.model)
+                    self.model = "openai/gpt-oss-20b"
+                    try:
+                        resp = self.client.chat.completions.create(
+                            model=self.model,
+                            messages=messages,
+                            temperature=temperature,
+                            max_tokens=max_tokens,
+                        )
+                        return resp.choices[0].message.content
+                    except Exception as retry_err:
+                        logger.error("Fallback to openai/gpt-oss-20b also failed: %s", retry_err)
                 if "model" in error_msg.lower() or "not found" in error_msg.lower() or "decommissioned" in error_msg.lower():
                     return _MSG_MODEL_ERROR.format(self.model)
                 return _MSG_UNKNOWN_ERROR
+
 
             except _RETRYABLE as e:
                 wait_time = (2 ** attempt) * 1.0  # 1s, 2s, 4s
