@@ -92,12 +92,22 @@ app.include_router(auth.router)
 app.include_router(chat.router)
 
 
+import os
+from fastapi.staticfiles import StaticFiles
+
+# Mount frontend directory for direct web UI access
+frontend_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
+if os.path.exists(frontend_dir):
+    app.mount("/frontend", StaticFiles(directory=frontend_dir, html=True), name="frontend")
+
+
 # Root endpoint
 @app.get("/")
 async def root():
     return {
         "message": "Welcome to Customer Support AI API!",
         "status": "running",
+        "frontend": "/frontend/",
         "docs": "/docs",
         "health": "/health",
     }

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TechMart Customer Support Portal</title>
+    <script>
+        // Check if user is logged in
+        const token = localStorage.getItem('techmart_token');
+        if (token) {
+            window.location.replace('chat.html');
+        } else {
+            window.location.replace('login.html');
+        }
+    </script>
+</head>
+<body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f8f9fa;">
+    <div style="text-align: center;">
+        <h2>Redirecting to TechMart Support...</h2>
+        <p>If you are not redirected automatically, <a href="login.html">click here to sign in</a>.</p>
+    </div>
+</body>
+</html>
