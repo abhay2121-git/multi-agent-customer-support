@@ -92,6 +92,17 @@ app.include_router(auth.router)
 app.include_router(chat.router)
 
 
+# Root endpoint
+@app.get("/")
+async def root():
+    return {
+        "message": "Welcome to Customer Support AI API!",
+        "status": "running",
+        "docs": "/docs",
+        "health": "/health",
+    }
+
+
 # Health check endpoint
 @app.get("/health")
 async def health_check():
