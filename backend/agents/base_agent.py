@@ -24,7 +24,12 @@ class BaseAgent(ABC):
 
         Returns a tuple of (context_string, raw_chunks) to avoid double retrieval.
         """
-        chunks = vector_store.retrieve(query, top_k=3)
+        try:
+            chunks = vector_store.retrieve(query, top_k=3)
+        except Exception as e:
+            logger.warning("RAG context retrieval failed for '%s': %s", query, e)
+            chunks = []
+
         if not chunks:
             return "No relevant context found.", []
 
@@ -35,6 +40,7 @@ class BaseAgent(ABC):
             context_str += f"Source: {source}\n{text}\n\n"
 
         return context_str, chunks
+
 
     def respond(self, user_message: str, conversation_history: list[dict] = None) -> dict:
         if conversation_history is None:

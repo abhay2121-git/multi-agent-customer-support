@@ -263,8 +263,10 @@ async function sendMessage(event) {
                 loadTicketsCount();
             }
         } else {
-            displayMessage('assistant', "I'm sorry, I encountered an error processing your message.");
+            const errorMsg = (data && data.detail) ? data.detail : "I'm sorry, I encountered an error processing your message.";
+            displayMessage('assistant', errorMsg);
         }
+
     } catch (error) {
         typingElement.remove();
         displayMessage('assistant', "Network error. Please try again later.");

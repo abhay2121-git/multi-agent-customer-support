@@ -69,23 +69,33 @@ class EmbeddingModel:
     def _get_local_model(self):
         """Lazy-load the local sentence-transformers model as a fallback."""
         if self._local_model is None:
-            logger.info("Loading local sentence-transformers model as fallback...")
-            from sentence_transformers import SentenceTransformer
-            self._local_model = SentenceTransformer(self.model_name)
-            logger.info("Local model loaded.")
+            try:
+                logger.info("Attempting to load local sentence-transformers model...")
+                from sentence_transformers import SentenceTransformer
+                self._local_model = SentenceTransformer(self.model_name)
+                logger.info("Local model loaded.")
+            except Exception as e:
+                logger.warning("Local sentence-transformers model unavailable: %s", e)
+                return None
         return self._local_model
 
     def _embed_local(self, texts: list[str]) -> np.ndarray:
         """Generate embeddings using the local model (fallback)."""
-        model = self._get_local_model()
-        embeddings = model.encode(
-            texts,
-            batch_size=32,
-            convert_to_numpy=True,
-            show_progress_bar=False,
-            normalize_embeddings=True,
-        )
-        return np.asarray(embeddings, dtype=np.float32)
+        try:
+            model = self._get_local_model()
+            if model is None:
+                return np.empty((0, 0), dtype=np.float32)
+            embeddings = model.encode(
+                texts,
+                batch_size=32,
+                convert_to_numpy=True,
+                show_progress_bar=False,
+                normalize_embeddings=True,
+            )
+            return np.asarray(embeddings, dtype=np.float32)
+        except Exception as e:
+            logger.warning("Local embedding generation failed: %s", e)
+            return np.empty((0, 0), dtype=np.float32)
 
     def embed_texts(self, texts: list[str]) -> np.ndarray:
         """Generate normalized embeddings for a list of texts.
@@ -98,24 +108,33 @@ class EmbeddingModel:
         start = time.time()
 
         # Try HF Inference API first (lightweight, no local model needed)
-        result = self._call_hf_api(texts)
-        if result is not None:
-            elapsed = time.time() - start
-            logger.info(
-                "Generated embeddings for %d texts via HF API in %.2f seconds",
-                len(texts), elapsed,
-            )
-            return result
+        try:
+            result = self._call_hf_api(texts)
+            if result is not None and result.size > 0:
+                elapsed = time.time() - start
+                logger.info(
+                    "Generated embeddings for %d texts via HF API in %.2f seconds",
+                    len(texts), elapsed,
+                )
+                return result
+        except Exception as e:
+            logger.warning("HF API error during embed_texts: %s", e)
 
-        # Fallback to local model
-        logger.info("Falling back to local sentence-transformers model...")
-        result = self._embed_local(texts)
-        elapsed = time.time() - start
-        logger.info(
-            "Generated embeddings for %d texts via local model in %.2f seconds",
-            len(texts), elapsed,
-        )
-        return result
+        # Fallback to local model if available
+        try:
+            result = self._embed_local(texts)
+            if result is not None and result.size > 0:
+                elapsed = time.time() - start
+                logger.info(
+                    "Generated embeddings for %d texts via local model in %.2f seconds",
+                    len(texts), elapsed,
+                )
+                return result
+        except Exception as e:
+            logger.warning("Local embedding error: %s", e)
+
+        return np.empty((0, 0), dtype=np.float32)
+
 
     def embed_query(self, query: str) -> np.ndarray:
         """Generate a normalized embedding for a single query string."""
