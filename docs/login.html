@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TechMart - Customer Support Portal</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="d-flex align-items-center justify-content-center min-vh-100 bg-light">
+
+    <div class="card shadow-sm p-4" style="max-width: 420px; width: 100%;">
+        <div class="text-center mb-4">
+            <h2 class="text-primary-brand fw-bold mb-1">TechMart</h2>
+            <p class="text-muted">Customer Support Portal</p>
+        </div>
+
+        <div id="loginError" class="alert alert-danger d-none" role="alert"></div>
+
+        <form id="loginForm" onsubmit="login(event)">
+            <div class="mb-3">
+                <label for="email" class="form-label">Email address</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                    <input type="email" class="form-control" id="email" required>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="password" class="form-label">Password</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                    <input type="password" class="form-control" id="password" required>
+                    <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('password')">
+                        <i class="bi bi-eye"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="mb-3 form-check">
+                <input type="checkbox" class="form-check-input" id="rememberMe">
+                <label class="form-check-label" for="rememberMe">Remember me</label>
+            </div>
+
+            <button type="submit" id="loginBtn" class="btn btn-primary-brand w-100 py-2 mb-3">
+                <span id="loginSpinner" class="spinner-border spinner-border-sm d-none me-2" role="status" aria-hidden="true"></span>
+                Signing in...
+            </button>
+
+            <div class="d-flex align-items-center mb-3">
+                <hr class="flex-grow-1">
+                <span class="px-3 text-muted">or</span>
+                <hr class="flex-grow-1">
+            </div>
+
+            <div class="text-center">
+                <a href="register.html" class="text-decoration-none text-primary-brand">Don't have an account? Register here</a>
+            </div>
+        </form>
+    </div>
+
+    <script src="js/auth.js"></script>
+</body>
+</html>
