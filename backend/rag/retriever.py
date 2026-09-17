@@ -129,38 +129,83 @@ class VectorStore:
             logger.error("Auto-build of FAISS index failed: %s", e, exc_info=True)
             return False
 
-    def retrieve(self, query: str, top_k: int = 3) -> list[dict[str, Any]]:
-        """Retrieve top-k most relevant chunks for a query using cosine-similarity-compatible search."""
-        if self.index is None or not self.chunks:
-            if not self.auto_build_if_missing():
-                logger.warning("No index available for retrieval. Returning empty results.")
-                return []
+    def _fallback_keyword_search(self, query: str, top_k: int = 3) -> list[dict[str, Any]]:
+        """Fast, robust keyword-scoring retrieval fallback when embedding model is unavailable."""
+        import re
 
+        if not self.chunks:
+            return []
+
+        query_words = set(re.findall(r'\w+', query.lower()))
+        stop_words = {
+            "what", "are", "your", "is", "the", "a", "an", "i", "need", "to",
+            "how", "can", "in", "on", "of", "for", "and", "or", "me", "my", "do",
+        }
+        meaningful_words = query_words - stop_words
+        words_to_use = meaningful_words if meaningful_words else query_words
+
+        scored_chunks = []
+        for chunk in self.chunks:
+            text = chunk.get("text", "")
+            text_lower = text.lower()
+            score = sum(text_lower.count(word) for word in words_to_use)
+            if score > 0:
+                scored_chunks.append((score, chunk))
+
+        scored_chunks.sort(key=lambda x: x[0], reverse=True)
+        return [
+            {
+                "text": chunk.get("text", ""),
+                "source": chunk.get("source", ""),
+                "score": float(score),
+            }
+            for score, chunk in scored_chunks[:top_k]
+        ]
+
+    def retrieve(self, query: str, top_k: int = 3) -> list[dict[str, Any]]:
+        """Retrieve top-k most relevant chunks for a query using vector or keyword search."""
         if top_k <= 0:
             return []
 
-        query_embedding = embedding_model.embed_query(query)
-        if query_embedding.size == 0:
-            return []
+        # Ensure chunks are loaded (even if FAISS index is not)
+        if not self.chunks:
+            self.load_index()
+            if not self.chunks and self.metadata_path.exists():
+                try:
+                    with self.metadata_path.open("r", encoding="utf-8") as f:
+                        self.chunks = json.load(f)
+                except Exception as e:
+                    logger.warning("Could not load chunk metadata: %s", e)
 
-        k = min(top_k, len(self.chunks))
-        scores, indices = self.index.search(np.asarray(query_embedding, dtype=np.float32), k)
+        # 1. Try vector retrieval if index and embedding model are functional
+        if self.index is not None and self.chunks:
+            try:
+                query_embedding = embedding_model.embed_query(query)
+                if query_embedding is not None and query_embedding.size > 0:
+                    k = min(top_k, len(self.chunks))
+                    scores, indices = self.index.search(
+                        np.asarray(query_embedding, dtype=np.float32), k
+                    )
+                    results: list[dict[str, Any]] = []
+                    for score, idx in zip(scores[0], indices[0]):
+                        if idx < 0 or idx >= len(self.chunks):
+                            continue
+                        chunk = self.chunks[idx]
+                        results.append(
+                            {
+                                "text": chunk.get("text", ""),
+                                "source": chunk.get("source", ""),
+                                "score": float(score),
+                            }
+                        )
+                    if results:
+                        return results
+            except Exception as e:
+                logger.warning("Vector search failed (%s), falling back to keyword search", e)
 
-        results: list[dict[str, Any]] = []
-        for score, idx in zip(scores[0], indices[0]):
-            if idx < 0 or idx >= len(self.chunks):
-                continue
-
-            chunk = self.chunks[idx]
-            results.append(
-                {
-                    "text": chunk.get("text", ""),
-                    "source": chunk.get("source", ""),
-                    "score": float(score),
-                }
-            )
-
-        return results
+        # 2. Fallback to keyword-based retrieval
+        return self._fallback_keyword_search(query, top_k)
 
 
 vector_store = VectorStore()
+
