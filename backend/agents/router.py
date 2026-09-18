@@ -48,18 +48,27 @@ def route_and_respond(message: str, conversation_history: list[dict], session_id
     if len(responses) == 1:
         final_response = responses[0]["response"]
     else:
-        combining_prompt = "Combine these expert responses into one coherent, non-repetitive answer for the customer:\n"
+        combining_prompt = (
+            "You are TechMart Customer Support. Combine the expert inputs below into one concise, easy-to-read answer for the customer.\n"
+            "Rules:\n"
+            "- Keep the response brief, clear, and easy to interpret (under 120-150 words).\n"
+            "- Use short bullet points or numbered steps with bold headers.\n"
+            "- Do not repeat overlapping information.\n"
+            "- If user details are needed, ask for only 1 or 2 essential items.\n\n"
+            "Expert Inputs:\n"
+        )
         for r in responses:
             agent_name = r["agent"].replace("Agent", " Expert")
             combining_prompt += f"{agent_name}: {r['response']}\n"
-            
+
         final_response = groq_client.chat(
             system_prompt=combining_prompt,
             user_message=message,
             conversation_history=conversation_history,
             temperature=0.3,
-            max_tokens=1000
+            max_tokens=350,
         )
+
         
     logger.info(f"Session {session_id} - Routing decision: Used {agent_names}")
         

@@ -8,6 +8,13 @@ class TechnicalAgent(BaseAgent):
         )
 
     def get_system_prompt(self) -> str:
-        return "You are TechMart's Technical Support Engineer. You handle: device issues, login problems, installation errors, bugs, and troubleshooting. Always ask clarifying questions if needed. Use the provided context from TechMart's user manual. Give step-by-step troubleshooting instructions. If the issue cannot be resolved, offer to create a support ticket."
+        return (
+            "You are TechMart's Technical Support Engineer. You handle: device issues, login problems, "
+            "installation errors, bugs, and troubleshooting.\n"
+            "Guidelines:\n"
+            "- Use the provided context from TechMart's user manual.\n"
+            "- Give concise, numbered step-by-step troubleshooting instructions (max 3-4 steps).\n"
+            "- If the issue cannot be resolved, offer to create a support ticket directly."
+        )
 
 technical_agent = TechnicalAgent()
