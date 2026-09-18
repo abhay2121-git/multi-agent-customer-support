@@ -82,7 +82,7 @@ class GroqClient:
         result = self._call_with_retry(
             messages=messages,
             temperature=0.0,
-            max_tokens=100,
+            max_tokens=600,
             method_name="classify",
         )
         return result
@@ -119,7 +119,18 @@ class GroqClient:
                         usage.total_tokens,
                     )
 
-                return response.choices[0].message.content
+                msg = response.choices[0].message
+                content = msg.content or ""
+
+                # For reasoning models (e.g. gpt-oss): if content is empty, extract from reasoning
+                if not content.strip() and hasattr(msg, "reasoning") and msg.reasoning:
+                    import re
+                    match = re.search(r'\[\s*"[^"]*"\s*(?:,\s*"[^"]*"\s*)*\]', msg.reasoning)
+                    if match:
+                        content = match.group(0)
+
+                return content
+
 
             except AuthenticationError as e:
                 logger.error(
