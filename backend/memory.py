@@ -238,3 +238,27 @@ def get_user_tickets(user_id: int, db: Session) -> list[dict]:
     except Exception as e:
         logger.error("Failed to fetch tickets for user %d: %s", user_id, e)
         return []
+
+
+def delete_user_ticket(ticket_number: str, user_id: int, db: Session) -> bool:
+    """Delete a support ticket belonging to user_id.
+
+    Returns True if deleted successfully, False if not found or unauthorized.
+    """
+    try:
+        ticket = (
+            db.query(Ticket)
+            .filter(Ticket.ticket_number == ticket_number, Ticket.user_id == user_id)
+            .first()
+        )
+        if not ticket:
+            return False
+
+        db.delete(ticket)
+        db.commit()
+        logger.info("Ticket deleted — %s (user_id=%d)", ticket_number, user_id)
+        return True
+    except Exception as e:
+        db.rollback()
+        logger.error("Failed to delete ticket %s for user %d: %s", ticket_number, user_id, e)
+        raise

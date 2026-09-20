@@ -416,7 +416,7 @@ async function openTicketsModal() {
                         </div>
                     ` : ''}
                 `;
-                listEl.appendChild(item);
+
             });
         } else {
             listEl.innerHTML = `<div class="p-3 text-center text-danger">Failed to load tickets. Please try again.</div>`;
