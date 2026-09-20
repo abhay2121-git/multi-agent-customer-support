@@ -8,6 +8,8 @@ const API_URL = (window.location.hostname === 'localhost' || window.location.hos
 
 let currentSessionId = localStorage.getItem('techmart_session');
 let isWaitingForResponse = false;
+let sessionTicketNumber = null; // tracks the ticket already created for the active session
+
 
 document.addEventListener('DOMContentLoaded', async () => {
     // Set username in navbar
@@ -164,6 +166,7 @@ async function loadSession(sessionId) {
             const data = await response.json();
             currentSessionId = sessionId;
             localStorage.setItem('techmart_session', sessionId);
+            sessionTicketNumber = null; // reset so we correctly track new tickets for this session
 
             const messagesArea = document.getElementById('messagesArea');
             messagesArea.innerHTML = '';
@@ -294,8 +297,12 @@ async function sendMessage(event) {
             displayMessage('assistant', data.response, data.agent_used, data.timestamp);
 
             if (data.ticket_number) {
-                showTicketToast(data.ticket_number);
-                loadTicketsCount();
+                // Only show toast + increment count when this is a genuinely NEW ticket
+                if (data.ticket_number !== sessionTicketNumber) {
+                    sessionTicketNumber = data.ticket_number;
+                    showTicketToast(data.ticket_number);
+                    loadTicketsCount();
+                }
             }
         } else {
             const errorMsg = (data && data.detail) ? data.detail : "I'm sorry, I encountered an error processing your message.";
