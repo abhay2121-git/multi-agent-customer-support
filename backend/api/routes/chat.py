@@ -140,7 +140,7 @@ def send_message(
         ticket_number = None
         if "ComplaintAgent" in agents_str:
             try:
-                # Prevent spamming tickets: only 1 ticket per session
+                # Prevent spamming tickets: only 1 open ticket per session
                 existing_ticket = (
                     db.query(Ticket)
                     .filter(
@@ -151,25 +151,44 @@ def send_message(
                     .first()
                 )
                 if not existing_ticket:
-                    # Check if the query is an actual complaint or escalation request
+                    # Only create for genuine complaints — NOTE: 'ticket' removed intentionally
+                    # so asking "view my ticket" doesn't auto-create a new one
                     complaint_indicators = [
                         "complaint", "escalat", "manager", "unacceptable", "terrible",
-                        "worst", "cheat", "fraud", "scam", "sue", "legal", "ticket",
-                        "dispute", "horrible", "damaged", "broken"
+                        "worst", "cheat", "fraud", "scam", "sue", "legal",
+                        "dispute", "horrible", "damaged", "broken", "refund", "not working",
                     ]
                     msg_lower = payload.message.lower()
                     is_direct_complaint = any(ind in msg_lower for ind in complaint_indicators)
 
-                    # Only auto-create if user directly expressed a complaint/escalation or intent was specifically complaint
                     if is_direct_complaint or intents_str == "complaint":
-                        ticket = create_ticket(
-                            user_id=current_user.id,
-                            session_id=payload.session_id,
-                            issue_summary=payload.message[:200],
-                            db=db,
-                            priority="high",
-                        )
-                        ticket_number = ticket["ticket_number"]
+                        try:
+                            ticket = create_ticket(
+                                user_id=current_user.id,
+                                session_id=payload.session_id,
+                                issue_summary=payload.message[:200],
+                                db=db,
+                                priority="high",
+                            )
+                            ticket_number = ticket["ticket_number"]
+                        except Exception:
+                            # Unique-constraint race: another concurrent request already inserted.
+                            # Re-fetch the existing ticket for this session instead.
+                            db.rollback()
+                            race_ticket = (
+                                db.query(Ticket)
+                                .filter(
+                                    Ticket.user_id == current_user.id,
+                                    Ticket.session_id == payload.session_id,
+                                )
+                                .order_by(Ticket.created_at.desc())
+                                .first()
+                            )
+                            if race_ticket:
+                                ticket_number = race_ticket.ticket_number
+                else:
+                    # Return the existing open ticket number so frontend knows
+                    ticket_number = existing_ticket.ticket_number
             except Exception as e:
                 logger.warning("Auto-ticket creation failed: %s", e)
 
