@@ -223,8 +223,13 @@ def get_user_tickets(user_id: int, db: Session) -> list[dict]:
             .order_by(Ticket.created_at.desc())
             .all()
         )
-        return [
-            {
+        seen_numbers = set()
+        result = []
+        for t in tickets:
+            if not t.ticket_number or t.ticket_number in seen_numbers:
+                continue
+            seen_numbers.add(t.ticket_number)
+            result.append({
                 "ticket_number": t.ticket_number,
                 "issue_summary": t.issue_summary,
                 "status": t.status,
@@ -232,9 +237,8 @@ def get_user_tickets(user_id: int, db: Session) -> list[dict]:
                 "session_id": t.session_id,
                 "created_at": str(t.created_at) if t.created_at else None,
                 "updated_at": str(t.updated_at) if t.updated_at else None,
-            }
-            for t in tickets
-        ]
+            })
+        return result
     except Exception as e:
         logger.error("Failed to fetch tickets for user %d: %s", user_id, e)
         return []
@@ -246,19 +250,18 @@ def delete_user_ticket(ticket_number: str, user_id: int, db: Session) -> bool:
     Returns True if deleted successfully, False if not found or unauthorized.
     """
     try:
-        ticket = (
+        deleted = (
             db.query(Ticket)
             .filter(Ticket.ticket_number == ticket_number, Ticket.user_id == user_id)
-            .first()
+            .delete(synchronize_session=False)
         )
-        if not ticket:
-            return False
-
-        db.delete(ticket)
         db.commit()
-        logger.info("Ticket deleted — %s (user_id=%d)", ticket_number, user_id)
-        return True
+        if deleted > 0:
+            logger.info("Ticket deleted — %s (user_id=%d, count=%d)", ticket_number, user_id, deleted)
+            return True
+        return False
     except Exception as e:
         db.rollback()
         logger.error("Failed to delete ticket %s for user %d: %s", ticket_number, user_id, e)
         raise
+
