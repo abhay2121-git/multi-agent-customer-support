@@ -32,14 +32,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         charCount.textContent = `${input.value.length}/1000`;
     });
 
-    // Wire up My Tickets button explicitly for desktop and mobile touch
+    // Wire up My Tickets button
     const myTicketsBtn = document.getElementById('myTicketsBtn');
     if (myTicketsBtn) {
         myTicketsBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            openTicketsModal();
-        });
-        myTicketsBtn.addEventListener('touchend', (e) => {
             e.preventDefault();
             openTicketsModal();
         });
@@ -123,7 +119,12 @@ async function loadTicketsCount() {
         });
         if (response.ok) {
             const data = await response.json();
-            document.getElementById('ticketCount').textContent = data.tickets.length;
+            const tickets = data.tickets || [];
+            const uniqueTickets = new Set(tickets.map(t => t.ticket_number));
+            const countEl = document.getElementById('ticketCount');
+            if (countEl) {
+                countEl.textContent = uniqueTickets.size;
+            }
         }
     } catch (e) {
         console.error('Error loading tickets', e);
@@ -344,35 +345,57 @@ function showTicketToast(ticketNumber) {
     toast.show();
 }
 
+let isRefreshingTickets = false;
+
 async function refreshTicketsList() {
+    if (isRefreshingTickets) {
+        return;
+    }
+    isRefreshingTickets = true;
+
     const loadingEl = document.getElementById('ticketsLoading');
     const emptyEl   = document.getElementById('ticketsEmpty');
     const listEl    = document.getElementById('ticketsList');
 
-    loadingEl.classList.remove('d-none');
-    emptyEl.classList.add('d-none');
-    listEl.innerHTML = '';
+    if (loadingEl) loadingEl.classList.remove('d-none');
+    if (emptyEl) emptyEl.classList.add('d-none');
 
     try {
         const response = await fetch(`${API_URL}/chat/tickets`, {
             headers: getAuthHeaders()
         });
 
-        loadingEl.classList.add('d-none');
+        if (loadingEl) loadingEl.classList.add('d-none');
 
         if (response.ok) {
             const data    = await response.json();
             const tickets = data.tickets || [];
-            document.getElementById('ticketCount').textContent = tickets.length;
 
-            if (tickets.length === 0) {
-                emptyEl.classList.remove('d-none');
+            // Strict deduplication by ticket_number
+            const seenTicketNumbers = new Set();
+            const uniqueTickets = [];
+            for (const ticket of tickets) {
+                if (ticket && ticket.ticket_number && !seenTicketNumbers.has(ticket.ticket_number)) {
+                    seenTicketNumbers.add(ticket.ticket_number);
+                    uniqueTickets.push(ticket);
+                }
+            }
+
+            const countEl = document.getElementById('ticketCount');
+            if (countEl) countEl.textContent = uniqueTickets.length;
+
+            if (uniqueTickets.length === 0) {
+                if (emptyEl) emptyEl.classList.remove('d-none');
+                if (listEl) listEl.innerHTML = '';
                 return;
             }
 
-            tickets.forEach(ticket => {
+            const fragment = document.createDocumentFragment();
+
+            uniqueTickets.forEach(ticket => {
                 const item = document.createElement('div');
                 item.className = 'ticket-card';
+                item.id = `ticket-card-${ticket.ticket_number}`;
 
                 const createdDate = ticket.created_at
                     ? new Date(ticket.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
@@ -418,29 +441,49 @@ async function refreshTicketsList() {
                     ` : ''}
                     <div class="d-flex justify-content-end pt-2">
                         <button class="btn btn-sm btn-outline-danger ticket-delete-btn"
+                                id="btn-del-${escapeHtml(ticket.ticket_number)}"
                                 onclick="deleteTicket('${escapeHtml(ticket.ticket_number)}')">
                             <i class="bi bi-trash me-1"></i>Delete Ticket
                         </button>
                     </div>
                 `;
-                listEl.appendChild(item);
+                fragment.appendChild(item);
             });
+
+            if (listEl) {
+                listEl.replaceChildren(fragment);
+            }
         } else {
-            listEl.innerHTML = `<div class="p-3 text-center text-danger">Failed to load tickets. Please try again.</div>`;
+            if (listEl) listEl.innerHTML = `<div class="p-3 text-center text-danger">Failed to load tickets. Please try again.</div>`;
         }
     } catch (e) {
         console.error('Error loading tickets list', e);
-        document.getElementById('ticketsLoading').classList.add('d-none');
-        document.getElementById('ticketsList').innerHTML = `<div class="p-3 text-center text-danger">Network error loading tickets.</div>`;
+        if (loadingEl) loadingEl.classList.add('d-none');
+        if (listEl) listEl.innerHTML = `<div class="p-3 text-center text-danger">Network error loading tickets.</div>`;
+    } finally {
+        isRefreshingTickets = false;
     }
 }
 
-async function openTicketsModal() {
-    const modalEl = document.getElementById('ticketsModal');
-    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-    modal.show();
+let isOpeningTicketsModal = false;
 
-    await refreshTicketsList();
+async function openTicketsModal() {
+    if (isOpeningTicketsModal) return;
+    isOpeningTicketsModal = true;
+    try {
+        const modalEl = document.getElementById('ticketsModal');
+        if (modalEl) {
+            const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            if (!modalEl.classList.contains('show')) {
+                modal.show();
+            }
+        }
+        await refreshTicketsList();
+    } finally {
+        setTimeout(() => {
+            isOpeningTicketsModal = false;
+        }, 300);
+    }
 }
 
 function loadSessionFromTicket(sessionId) {
@@ -520,22 +563,40 @@ async function deleteTicket(ticketNumber) {
     if (!confirm(`Delete ticket ${ticketNumber}? This cannot be undone.`)) {
         return;
     }
+    const btn = document.getElementById(`btn-del-${ticketNumber}`);
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Deleting...`;
+    }
     try {
         const response = await fetch(`${API_URL}/chat/ticket/${encodeURIComponent(ticketNumber)}`, {
             method: 'DELETE',
             headers: getAuthHeaders(),
         });
         if (response.ok) {
-            // Re-render the list inside the already-open modal (do NOT call openTicketsModal
-            // — that would create a second Bootstrap modal layer, doubling every ticket)
+            // Remove card immediately from DOM for instant feedback
+            const card = document.getElementById(`ticket-card-${ticketNumber}`);
+            if (card) {
+                card.remove();
+            }
+            // Refresh list and badge counter
             await refreshTicketsList();
+            await loadTicketsCount();
         } else {
             const err = await response.json().catch(() => ({}));
             alert(err.detail || 'Failed to delete ticket.');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="bi bi-trash me-1"></i>Delete Ticket`;
+            }
         }
     } catch (e) {
         console.error('Error deleting ticket', e);
         alert('Network error deleting ticket.');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="bi bi-trash me-1"></i>Delete Ticket`;
+        }
     }
 }
 
