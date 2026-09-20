@@ -175,6 +175,28 @@ body {
     color: var(--tm-white);
 }
 
+.session-delete-btn {
+    opacity: 0.35;
+    border: none;
+    background: transparent;
+    color: #94a3b8;
+    padding: 0.25rem 0.45rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    transition: all 0.2s ease-in-out;
+}
+
+.session-item:hover .session-delete-btn {
+    opacity: 0.85;
+}
+
+.session-delete-btn:hover, .session-delete-btn:focus {
+    opacity: 1 !important;
+    color: #ffffff !important;
+    background-color: #dc3545 !important;
+    transform: scale(1.1);
+}
+
 .tickets-sidebar-btn {
     background-color: #24243e !important;
     border: 1px solid rgba(255, 255, 255, 0.2) !important;

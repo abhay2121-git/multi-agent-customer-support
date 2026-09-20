@@ -320,6 +320,54 @@ def create_new_session(
 
 
 # ---------------------------------------------------------------------------
+# DELETE /chat/session/{session_id}
+# ---------------------------------------------------------------------------
+
+@router.delete(
+    "/session/{session_id}",
+    summary="Delete Chat Session",
+    description="Delete a chat session and all its associated conversation messages.",
+)
+def delete_session(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    db: DBSession = Depends(get_db),
+):
+    # Verify session belongs to user
+    session_record = (
+        db.query(UserSession)
+        .filter(UserSession.session_id == session_id, UserSession.user_id == current_user.id)
+        .first()
+    )
+
+    # Delete conversation messages for this session
+    deleted_msgs = (
+        db.query(Conversation)
+        .filter(Conversation.session_id == session_id, Conversation.user_id == current_user.id)
+        .delete(synchronize_session=False)
+    )
+
+    # Delete session record if it exists
+    if session_record:
+        db.delete(session_record)
+
+    db.commit()
+
+    logger.info(
+        "Session deleted — session=%s, user=%s, deleted_messages=%d",
+        session_id,
+        current_user.username,
+        deleted_msgs,
+    )
+
+    return {
+        "status": "success",
+        "message": "Session deleted successfully",
+        "session_id": session_id,
+    }
+
+
+# ---------------------------------------------------------------------------
 # GET /chat/tickets
 # ---------------------------------------------------------------------------
 

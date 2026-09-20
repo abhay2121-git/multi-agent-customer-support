@@ -72,17 +72,34 @@ async function loadSessionsList() {
             const list = document.getElementById('sessionList');
             list.innerHTML = '';
 
+            if (data.sessions.length === 0) {
+                list.innerHTML = `
+                    <div class="px-3 py-4 text-center text-muted small">
+                        <i class="bi bi-chat-square-dots d-block fs-4 mb-2 opacity-50"></i>
+                        No active sessions
+                    </div>
+                `;
+                return;
+            }
+
             data.sessions.forEach((s, index) => {
                 const div = document.createElement('div');
-                div.className = `session-item ${s.session_id === currentSessionId ? 'active' : ''}`;
-                div.onclick = () => loadSession(s.session_id);
+                div.className = `session-item d-flex justify-content-between align-items-center ${s.session_id === currentSessionId ? 'active' : ''}`;
+                div.onclick = (e) => {
+                    if (!e.target.closest('.session-delete-btn')) {
+                        loadSession(s.session_id);
+                    }
+                };
 
                 const date = s.created_at ? new Date(s.created_at).toLocaleDateString() : 'New';
                 div.innerHTML = `
-                    <div class="d-flex justify-content-between">
-                        <span>Session #${data.sessions.length - index}</span>
-                        <small class="text-muted">${date}</small>
+                    <div class="d-flex flex-column text-truncate me-2" style="cursor: pointer;">
+                        <span class="fw-medium text-truncate">Session #${data.sessions.length - index}</span>
+                        <small class="text-muted" style="font-size: 0.72rem;">${date}</small>
                     </div>
+                    <button type="button" class="btn btn-sm text-secondary session-delete-btn" title="Delete Session" onclick="deleteSession(event, '${s.session_id}')">
+                        <i class="bi bi-trash3"></i>
+                    </button>
                 `;
                 list.appendChild(div);
             });
@@ -415,6 +432,40 @@ function loadSessionFromTicket(sessionId) {
     loadSession(sessionId);
 }
 
+async function deleteSession(event, sessionId) {
+    if (event) {
+        event.stopPropagation();
+    }
+
+    if (!confirm("Are you sure you want to delete this session and its chat history?")) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/chat/session/${sessionId}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders()
+        });
+
+        if (response.ok) {
+            // If the deleted session was currently active, start a fresh session or load another
+            if (sessionId === currentSessionId) {
+                localStorage.removeItem('techmart_session');
+                currentSessionId = null;
+                await startNewSession();
+            } else {
+                await loadSessionsList();
+            }
+        } else {
+            const err = await response.json();
+            alert(err.detail || "Failed to delete session.");
+        }
+    } catch (e) {
+        console.error("Error deleting session", e);
+        alert("Network error deleting session.");
+    }
+}
+
 async function logout() {
     try {
         await fetch(`${API_URL}/auth/logout`, {
@@ -435,4 +486,6 @@ window.logout = logout;
 window.sendMessage = sendMessage;
 window.openTicketsModal = openTicketsModal;
 window.loadSessionFromTicket = loadSessionFromTicket;
+window.deleteSession = deleteSession;
+
 
