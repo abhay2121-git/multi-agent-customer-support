@@ -337,14 +337,10 @@ function showTicketToast(ticketNumber) {
     toast.show();
 }
 
-async function openTicketsModal() {
-    const modalEl = document.getElementById('ticketsModal');
-    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-    modal.show();
-
+async function refreshTicketsList() {
     const loadingEl = document.getElementById('ticketsLoading');
-    const emptyEl = document.getElementById('ticketsEmpty');
-    const listEl = document.getElementById('ticketsList');
+    const emptyEl   = document.getElementById('ticketsEmpty');
+    const listEl    = document.getElementById('ticketsList');
 
     loadingEl.classList.remove('d-none');
     emptyEl.classList.add('d-none');
@@ -358,7 +354,7 @@ async function openTicketsModal() {
         loadingEl.classList.add('d-none');
 
         if (response.ok) {
-            const data = await response.json();
+            const data    = await response.json();
             const tickets = data.tickets || [];
             document.getElementById('ticketCount').textContent = tickets.length;
 
@@ -375,7 +371,6 @@ async function openTicketsModal() {
                     ? new Date(ticket.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
                     : 'N/A';
 
-                // Status badge styling
                 let statusBadgeClass = 'bg-warning text-dark';
                 const status = (ticket.status || 'open').toLowerCase();
                 if (status === 'resolved' || status === 'closed') {
@@ -384,7 +379,6 @@ async function openTicketsModal() {
                     statusBadgeClass = 'bg-info text-dark';
                 }
 
-                // Priority badge styling
                 let priorityBadgeClass = 'bg-secondary text-white';
                 const priority = (ticket.priority || 'medium').toLowerCase();
                 if (priority === 'high' || priority === 'critical') {
@@ -428,10 +422,18 @@ async function openTicketsModal() {
             listEl.innerHTML = `<div class="p-3 text-center text-danger">Failed to load tickets. Please try again.</div>`;
         }
     } catch (e) {
-        console.error('Error opening tickets modal', e);
-        loadingEl.classList.add('d-none');
-        listEl.innerHTML = `<div class="p-3 text-center text-danger">Network error loading tickets.</div>`;
+        console.error('Error loading tickets list', e);
+        document.getElementById('ticketsLoading').classList.add('d-none');
+        document.getElementById('ticketsList').innerHTML = `<div class="p-3 text-center text-danger">Network error loading tickets.</div>`;
     }
+}
+
+async function openTicketsModal() {
+    const modalEl = document.getElementById('ticketsModal');
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+
+    await refreshTicketsList();
 }
 
 function loadSessionFromTicket(sessionId) {
@@ -517,8 +519,9 @@ async function deleteTicket(ticketNumber) {
             headers: getAuthHeaders(),
         });
         if (response.ok) {
-            // Refresh the modal in-place
-            await openTicketsModal();
+            // Re-render the list inside the already-open modal (do NOT call openTicketsModal
+            // — that would create a second Bootstrap modal layer, doubling every ticket)
+            await refreshTicketsList();
         } else {
             const err = await response.json().catch(() => ({}));
             alert(err.detail || 'Failed to delete ticket.');
