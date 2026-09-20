@@ -46,10 +46,10 @@
             </div>
             
             <div class="px-3 mt-auto pt-3 border-top border-secondary">
-                <div class="d-flex justify-content-between align-items-center text-light">
-                    <span><i class="bi bi-ticket-detailed me-2"></i> My Tickets</span>
-                    <span id="ticketCount" class="badge bg-primary rounded-pill">0</span>
-                </div>
+                <button type="button" id="myTicketsBtn" class="btn btn-dark border-secondary w-100 d-flex justify-content-between align-items-center py-2 px-3 rounded text-white tickets-sidebar-btn shadow-sm" onclick="openTicketsModal()" title="Click to view Support Tickets">
+                    <span class="fw-semibold"><i class="bi bi-ticket-detailed-fill me-2 text-warning"></i> My Tickets</span>
+                    <span id="ticketCount" class="badge bg-primary rounded-pill px-2 py-1 fs-6">0</span>
+                </button>
             </div>
         </div>
 
@@ -74,6 +74,39 @@
                 </form>
             </div>
             
+        </div>
+    </div>
+
+    <!-- Tickets Modal -->
+    <div class="modal fade" id="ticketsModal" tabindex="-1" aria-labelledby="ticketsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title d-flex align-items-center" id="ticketsModalLabel">
+                        <i class="bi bi-ticket-detailed me-2 text-primary-brand"></i> Support Tickets
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-3 bg-light">
+                    <div id="ticketsLoading" class="text-center py-5 d-none">
+                        <div class="spinner-border text-danger" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Fetching your tickets...</p>
+                    </div>
+                    <div id="ticketsEmpty" class="text-center py-5 d-none">
+                        <i class="bi bi-inbox text-muted display-4"></i>
+                        <h6 class="mt-3 text-secondary">No support tickets found</h6>
+                        <p class="text-muted small mb-0">Tickets are created automatically when an issue needs escalation or specialized follow-up.</p>
+                    </div>
+                    <div id="ticketsList" class="d-flex flex-column gap-3">
+                        <!-- Ticket cards injected here -->
+                    </div>
+                </div>
+                <div class="modal-footer bg-white">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
         </div>
     </div>
 

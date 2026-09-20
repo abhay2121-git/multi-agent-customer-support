@@ -19,7 +19,7 @@ from sqlalchemy import func as sa_func
 from backend.agents.router import route_and_respond
 from backend.auth_utils import get_current_user, generate_session_id
 from backend.database.connection import get_db
-from backend.database.models import Conversation, User, Session as UserSession
+from backend.database.models import Conversation, User, Session as UserSession, Ticket
 from backend.memory import (
     get_conversation_history,
     save_message,
@@ -135,18 +135,40 @@ def send_message(
             intent_detected=intents_str,
         )
 
-        # 6. Auto-create ticket if complaint agent was used
+        # 6. Auto-create ticket only if genuine complaint/escalation and no open ticket exists for this session
         ticket_number = None
         if "ComplaintAgent" in agents_str:
             try:
-                ticket = create_ticket(
-                    user_id=current_user.id,
-                    session_id=payload.session_id,
-                    issue_summary=payload.message[:200],
-                    db=db,
-                    priority="high",
+                # Prevent spamming tickets: only 1 ticket per session
+                existing_ticket = (
+                    db.query(Ticket)
+                    .filter(
+                        Ticket.user_id == current_user.id,
+                        Ticket.session_id == payload.session_id,
+                        Ticket.status != "closed",
+                    )
+                    .first()
                 )
-                ticket_number = ticket["ticket_number"]
+                if not existing_ticket:
+                    # Check if the query is an actual complaint or escalation request
+                    complaint_indicators = [
+                        "complaint", "escalat", "manager", "unacceptable", "terrible",
+                        "worst", "cheat", "fraud", "scam", "sue", "legal", "ticket",
+                        "dispute", "horrible", "damaged", "broken"
+                    ]
+                    msg_lower = payload.message.lower()
+                    is_direct_complaint = any(ind in msg_lower for ind in complaint_indicators)
+
+                    # Only auto-create if user directly expressed a complaint/escalation or intent was specifically complaint
+                    if is_direct_complaint or intents_str == "complaint":
+                        ticket = create_ticket(
+                            user_id=current_user.id,
+                            session_id=payload.session_id,
+                            issue_summary=payload.message[:200],
+                            db=db,
+                            priority="high",
+                        )
+                        ticket_number = ticket["ticket_number"]
             except Exception as e:
                 logger.warning("Auto-ticket creation failed: %s", e)
 
