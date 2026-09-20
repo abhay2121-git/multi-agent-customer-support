@@ -415,8 +415,14 @@ async function openTicketsModal() {
                             </button>
                         </div>
                     ` : ''}
+                    <div class="d-flex justify-content-end pt-2">
+                        <button class="btn btn-sm btn-outline-danger ticket-delete-btn"
+                                onclick="deleteTicket('${escapeHtml(ticket.ticket_number)}')">
+                            <i class="bi bi-trash me-1"></i>Delete Ticket
+                        </button>
+                    </div>
                 `;
-
+                listEl.appendChild(item);
             });
         } else {
             listEl.innerHTML = `<div class="p-3 text-center text-danger">Failed to load tickets. Please try again.</div>`;
@@ -501,4 +507,26 @@ window.openTicketsModal = openTicketsModal;
 window.loadSessionFromTicket = loadSessionFromTicket;
 window.deleteSession = deleteSession;
 
+async function deleteTicket(ticketNumber) {
+    if (!confirm(`Delete ticket ${ticketNumber}? This cannot be undone.`)) {
+        return;
+    }
+    try {
+        const response = await fetch(`${API_URL}/chat/ticket/${encodeURIComponent(ticketNumber)}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders(),
+        });
+        if (response.ok) {
+            // Refresh the modal in-place
+            await openTicketsModal();
+        } else {
+            const err = await response.json().catch(() => ({}));
+            alert(err.detail || 'Failed to delete ticket.');
+        }
+    } catch (e) {
+        console.error('Error deleting ticket', e);
+        alert('Network error deleting ticket.');
+    }
+}
 
+window.deleteTicket = deleteTicket;
