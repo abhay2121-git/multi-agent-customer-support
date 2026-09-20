@@ -226,6 +226,17 @@ body {
     box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
 }
 
+.ticket-delete-btn {
+    font-size: 0.78rem;
+    transition: all 0.18s ease;
+}
+
+.ticket-delete-btn:hover {
+    background-color: #dc3545 !important;
+    color: #fff !important;
+    transform: scale(1.04);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .chat-container {

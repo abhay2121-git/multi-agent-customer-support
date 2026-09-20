@@ -379,22 +379,38 @@ def delete_session(
     summary="List User Tickets",
     description="Return all support tickets for the authenticated user.",
 )
-    @router.delete(
-        "/ticket/{ticket_number}",
-        summary="Delete Support Ticket",
-        description="Delete a support ticket belonging to the current user",
+def list_tickets(
+    current_user: User = Depends(get_current_user),
+    db: DBSession = Depends(get_db),
+):
+    tickets = get_user_tickets(current_user.id, db)
+    return {"tickets": tickets}
+
+
+# ---------------------------------------------------------------------------
+# DELETE /chat/ticket/{ticket_number}
+# ---------------------------------------------------------------------------
+
+@router.delete(
+    "/ticket/{ticket_number}",
+    summary="Delete Support Ticket",
+    description="Delete a support ticket belonging to the current user.",
+)
+def delete_ticket(
+    ticket_number: str,
+    current_user: User = Depends(get_current_user),
+    db: DBSession = Depends(get_db),
+):
+    success = delete_user_ticket(ticket_number, current_user.id, db)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Ticket not found or you do not have permission to delete it.",
+        )
+    logger.info(
+        "Ticket deleted via API — ticket=%s, user=%s",
+        ticket_number,
+        current_user.username,
     )
-    def delete_ticket(
-        ticket_number: str,
-        current_user: User = Depends(get_current_user),
-        db: DBSession = Depends(get_db),
-    ):
-        # Attempt deletion; returns bool
-        success = delete_user_ticket(ticket_number, current_user.id, db)
-        if not success:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Ticket not found or you do not have permission to delete it.",
-            )
-        return {"status": "success", "message": f"Ticket {ticket_number} deleted."}
+    return {"status": "success", "message": f"Ticket {ticket_number} deleted."}
 
