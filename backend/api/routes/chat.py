@@ -136,10 +136,66 @@ def send_message(
             intent_detected=intents_str,
         )
 
-        # 6. Auto-create ticket only if genuine complaint/escalation and no open ticket exists for this session
+        # 6. Auto-create ticket if requested, confirmed by agent, or genuine complaint/escalation
         ticket_number = None
-        if "ComplaintAgent" in agents_str:
-            try:
+        try:
+            msg_lower = payload.message.lower().strip()
+            resp_lower = (result.get("response") or "").lower()
+
+            is_view_query = any(
+                phrase in msg_lower
+                for phrase in [
+                    "view ticket", "view tickets", "view my ticket", "view my tickets",
+                    "show ticket", "show tickets", "show my ticket", "show my tickets",
+                    "check ticket", "check tickets", "check my ticket", "check my tickets",
+                    "ticket status", "status of my ticket", "status of ticket",
+                    "list tickets", "list my tickets", "see my tickets", "see ticket"
+                ]
+            )
+
+            ticket_requested = any(
+                phrase in msg_lower
+                for phrase in [
+                    "generate a support ticket", "generate support ticket", "generate a ticket", "generate ticket",
+                    "create a support ticket", "create support ticket", "create a ticket", "create ticket",
+                    "raise a support ticket", "raise support ticket", "raise a ticket", "raise ticket",
+                    "open a support ticket", "open support ticket", "open a ticket", "open ticket",
+                    "file a support ticket", "file support ticket", "file a ticket", "file ticket",
+                    "make a support ticket", "make a ticket", "submit a ticket", "submit ticket",
+                    "new ticket", "need a ticket", "need ticket", "book a ticket",
+                    "support ticket"
+                ]
+            )
+
+            ticket_confirmed_by_agent = any(
+                phrase in resp_lower
+                for phrase in [
+                    "support ticket created", "ticket created", "ticket has been created",
+                    "support ticket has been created", "opened a support ticket",
+                    "ticket has been opened", "created a support ticket", "created the ticket",
+                    "ticket has been submitted", "submitted the ticket", "ticket is created",
+                    "ticket opened", "submitted your ticket"
+                ]
+            )
+
+            complaint_indicators = [
+                "complaint", "escalat", "manager", "unacceptable", "terrible",
+                "worst", "cheat", "fraud", "scam", "sue", "legal",
+                "dispute", "horrible", "damaged", "broken", "refund", "not working",
+                "fluctuat", "defective", "faulty"
+            ]
+            is_direct_complaint = any(ind in msg_lower for ind in complaint_indicators)
+            complaint_escalation = (
+                ("ComplaintAgent" in agents_str and is_direct_complaint)
+                or intents_str == "complaint"
+            )
+
+            should_create_ticket = (
+                not is_view_query
+                and (ticket_requested or ticket_confirmed_by_agent or complaint_escalation)
+            )
+
+            if should_create_ticket:
                 # Prevent spamming tickets: only 1 open ticket per session
                 existing_ticket = (
                     db.query(Ticket)
@@ -151,46 +207,61 @@ def send_message(
                     .first()
                 )
                 if not existing_ticket:
-                    # Only create for genuine complaints — NOTE: 'ticket' removed intentionally
-                    # so asking "view my ticket" doesn't auto-create a new one
-                    complaint_indicators = [
-                        "complaint", "escalat", "manager", "unacceptable", "terrible",
-                        "worst", "cheat", "fraud", "scam", "sue", "legal",
-                        "dispute", "horrible", "damaged", "broken", "refund", "not working",
-                    ]
-                    msg_lower = payload.message.lower()
-                    is_direct_complaint = any(ind in msg_lower for ind in complaint_indicators)
+                    summary = payload.message.strip()
+                    # If current message is brief (e.g. "generate a support ticket"), enrich with previous context
+                    if len(summary) < 30:
+                        prev_user_msg = (
+                            db.query(Conversation)
+                            .filter(
+                                Conversation.session_id == payload.session_id,
+                                Conversation.user_id == current_user.id,
+                                Conversation.role == "user",
+                            )
+                            .order_by(Conversation.timestamp.desc())
+                            .first()
+                        )
+                        if prev_user_msg and prev_user_msg.message and len(prev_user_msg.message) > len(summary):
+                            summary = f"{prev_user_msg.message.strip()[:150]} ({summary})"
 
-                    if is_direct_complaint or intents_str == "complaint":
-                        try:
-                            ticket = create_ticket(
-                                user_id=current_user.id,
-                                session_id=payload.session_id,
-                                issue_summary=payload.message[:200],
-                                db=db,
-                                priority="high",
+                    if len(summary) > 200:
+                        summary = summary[:197] + "..."
+
+                    try:
+                        ticket = create_ticket(
+                            user_id=current_user.id,
+                            session_id=payload.session_id,
+                            issue_summary=summary or "Customer support issue",
+                            db=db,
+                            priority="high",
+                        )
+                        ticket_number = ticket["ticket_number"]
+                    except Exception:
+                        # Unique-constraint race: another concurrent request already inserted.
+                        db.rollback()
+                        race_ticket = (
+                            db.query(Ticket)
+                            .filter(
+                                Ticket.user_id == current_user.id,
+                                Ticket.session_id == payload.session_id,
                             )
-                            ticket_number = ticket["ticket_number"]
-                        except Exception:
-                            # Unique-constraint race: another concurrent request already inserted.
-                            # Re-fetch the existing ticket for this session instead.
-                            db.rollback()
-                            race_ticket = (
-                                db.query(Ticket)
-                                .filter(
-                                    Ticket.user_id == current_user.id,
-                                    Ticket.session_id == payload.session_id,
-                                )
-                                .order_by(Ticket.created_at.desc())
-                                .first()
-                            )
-                            if race_ticket:
-                                ticket_number = race_ticket.ticket_number
+                            .order_by(Ticket.created_at.desc())
+                            .first()
+                        )
+                        if race_ticket:
+                            ticket_number = race_ticket.ticket_number
                 else:
                     # Return the existing open ticket number so frontend knows
                     ticket_number = existing_ticket.ticket_number
-            except Exception as e:
-                logger.warning("Auto-ticket creation failed: %s", e)
+                    # If existing ticket had a generic summary, update with specific details if available
+                    if (
+                        existing_ticket.issue_summary.lower().startswith("generate")
+                        and len(payload.message) > len(existing_ticket.issue_summary)
+                    ):
+                        existing_ticket.issue_summary = payload.message[:200]
+                        db.commit()
+        except Exception as e:
+            db.rollback()
+            logger.warning("Auto-ticket creation failed: %s", e)
 
         elapsed = time.perf_counter() - start
         logger.info(
@@ -267,7 +338,22 @@ def get_history(
         for r in rows
     ]
 
-    return {"session_id": session_id, "messages": messages}
+    session_ticket = (
+        db.query(Ticket)
+        .filter(
+            Ticket.session_id == session_id,
+            Ticket.user_id == current_user.id,
+            Ticket.status != "closed",
+        )
+        .order_by(Ticket.created_at.desc())
+        .first()
+    )
+
+    return {
+        "session_id": session_id,
+        "messages": messages,
+        "ticket_number": session_ticket.ticket_number if session_ticket else None,
+    }
 
 
 # ---------------------------------------------------------------------------

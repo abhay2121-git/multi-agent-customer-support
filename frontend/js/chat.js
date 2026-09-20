@@ -167,7 +167,7 @@ async function loadSession(sessionId) {
             const data = await response.json();
             currentSessionId = sessionId;
             localStorage.setItem('techmart_session', sessionId);
-            sessionTicketNumber = null; // reset so we correctly track new tickets for this session
+            sessionTicketNumber = data.ticket_number || null; // track already existing ticket for this session
 
             const messagesArea = document.getElementById('messagesArea');
             messagesArea.innerHTML = '';
