@@ -30,6 +30,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         charCount.textContent = `${input.value.length}/1000`;
     });
 
+    // Wire up My Tickets button explicitly for desktop and mobile touch
+    const myTicketsBtn = document.getElementById('myTicketsBtn');
+    if (myTicketsBtn) {
+        myTicketsBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            openTicketsModal();
+        });
+        myTicketsBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            openTicketsModal();
+        });
+    }
+
     // Load initial data
     await loadSessionsList();
     await loadTicketsCount();
@@ -279,12 +292,127 @@ async function sendMessage(event) {
     }
 }
 
+function escapeHtml(unsafe) {
+    if (!unsafe) return '';
+    return String(unsafe)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
 function showTicketToast(ticketNumber) {
     const toastEl = document.getElementById('ticketToast');
     const toastBody = document.getElementById('ticketToastBody');
-    toastBody.textContent = `Support ticket ${ticketNumber} has been opened for this issue.`;
+    toastBody.innerHTML = `
+        <div>Support ticket <strong>${escapeHtml(ticketNumber)}</strong> has been opened for this issue.</div>
+        <button class="btn btn-sm btn-light text-primary fw-bold mt-2" onclick="openTicketsModal()">
+            <i class="bi bi-eye me-1"></i> View Tickets
+        </button>
+    `;
     const toast = new bootstrap.Toast(toastEl);
     toast.show();
+}
+
+async function openTicketsModal() {
+    const modalEl = document.getElementById('ticketsModal');
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+
+    const loadingEl = document.getElementById('ticketsLoading');
+    const emptyEl = document.getElementById('ticketsEmpty');
+    const listEl = document.getElementById('ticketsList');
+
+    loadingEl.classList.remove('d-none');
+    emptyEl.classList.add('d-none');
+    listEl.innerHTML = '';
+
+    try {
+        const response = await fetch(`${API_URL}/chat/tickets`, {
+            headers: getAuthHeaders()
+        });
+
+        loadingEl.classList.add('d-none');
+
+        if (response.ok) {
+            const data = await response.json();
+            const tickets = data.tickets || [];
+            document.getElementById('ticketCount').textContent = tickets.length;
+
+            if (tickets.length === 0) {
+                emptyEl.classList.remove('d-none');
+                return;
+            }
+
+            tickets.forEach(ticket => {
+                const item = document.createElement('div');
+                item.className = 'ticket-card';
+
+                const createdDate = ticket.created_at
+                    ? new Date(ticket.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
+                    : 'N/A';
+
+                // Status badge styling
+                let statusBadgeClass = 'bg-warning text-dark';
+                const status = (ticket.status || 'open').toLowerCase();
+                if (status === 'resolved' || status === 'closed') {
+                    statusBadgeClass = 'bg-success text-white';
+                } else if (status === 'in-progress' || status === 'in_progress') {
+                    statusBadgeClass = 'bg-info text-dark';
+                }
+
+                // Priority badge styling
+                let priorityBadgeClass = 'bg-secondary text-white';
+                const priority = (ticket.priority || 'medium').toLowerCase();
+                if (priority === 'high' || priority === 'critical') {
+                    priorityBadgeClass = 'bg-danger text-white';
+                } else if (priority === 'medium') {
+                    priorityBadgeClass = 'bg-warning text-dark';
+                }
+
+                const isCurrentSession = ticket.session_id && ticket.session_id === currentSessionId;
+
+                item.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <span class="fw-bold text-primary-brand fs-6">${escapeHtml(ticket.ticket_number)}</span>
+                            <span class="badge ${statusBadgeClass} ms-2 text-uppercase" style="font-size: 0.7rem;">${escapeHtml(ticket.status || 'open')}</span>
+                            <span class="badge ${priorityBadgeClass} ms-1 text-uppercase" style="font-size: 0.7rem;">${escapeHtml(ticket.priority || 'medium')}</span>
+                        </div>
+                        <small class="text-muted"><i class="bi bi-clock me-1"></i>${createdDate}</small>
+                    </div>
+                    <p class="text-dark mb-2" style="font-size: 0.9rem; line-height: 1.4;">
+                        ${escapeHtml(ticket.issue_summary || 'No issue description.')}
+                    </p>
+                    ${ticket.session_id ? `
+                        <div class="d-flex align-items-center justify-content-between pt-2 border-top">
+                            <small class="text-muted">Session: ${escapeHtml(ticket.session_id.substring(0, 16))}...</small>
+                            <button class="btn btn-sm ${isCurrentSession ? 'btn-outline-secondary disabled' : 'btn-outline-primary'}" onclick="loadSessionFromTicket('${escapeHtml(ticket.session_id)}')">
+                                <i class="bi bi-chat-left-text me-1"></i> ${isCurrentSession ? 'Current Session' : 'View Session'}
+                            </button>
+                        </div>
+                    ` : ''}
+                `;
+                listEl.appendChild(item);
+            });
+        } else {
+            listEl.innerHTML = `<div class="p-3 text-center text-danger">Failed to load tickets. Please try again.</div>`;
+        }
+    } catch (e) {
+        console.error('Error opening tickets modal', e);
+        loadingEl.classList.add('d-none');
+        listEl.innerHTML = `<div class="p-3 text-center text-danger">Network error loading tickets.</div>`;
+    }
+}
+
+function loadSessionFromTicket(sessionId) {
+    const modalEl = document.getElementById('ticketsModal');
+    const modal = bootstrap.Modal.getInstance(modalEl);
+    if (modal) {
+        modal.hide();
+    }
+    loadSession(sessionId);
 }
 
 async function logout() {
@@ -305,3 +433,6 @@ async function logout() {
 window.startNewSession = startNewSession;
 window.logout = logout;
 window.sendMessage = sendMessage;
+window.openTicketsModal = openTicketsModal;
+window.loadSessionFromTicket = loadSessionFromTicket;
+
