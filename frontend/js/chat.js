@@ -72,17 +72,19 @@ async function loadSessionsList() {
             const list = document.getElementById('sessionList');
             list.innerHTML = '';
 
-            if (data.sessions.length === 0) {
+            const sessions = data.sessions || [];
+
+            if (sessions.length === 0) {
                 list.innerHTML = `
                     <div class="px-3 py-4 text-center text-muted small">
                         <i class="bi bi-chat-square-dots d-block fs-4 mb-2 opacity-50"></i>
                         No active sessions
                     </div>
                 `;
-                return;
+                return [];
             }
 
-            data.sessions.forEach((s, index) => {
+            sessions.forEach((s, index) => {
                 const div = document.createElement('div');
                 div.className = `session-item d-flex justify-content-between align-items-center ${s.session_id === currentSessionId ? 'active' : ''}`;
                 div.onclick = (e) => {
@@ -94,7 +96,7 @@ async function loadSessionsList() {
                 const date = s.created_at ? new Date(s.created_at).toLocaleDateString() : 'New';
                 div.innerHTML = `
                     <div class="d-flex flex-column text-truncate me-2" style="cursor: pointer;">
-                        <span class="fw-medium text-truncate">Session #${data.sessions.length - index}</span>
+                        <span class="fw-medium text-truncate">Session #${sessions.length - index}</span>
                         <small class="text-muted" style="font-size: 0.72rem;">${date}</small>
                     </div>
                     <button type="button" class="btn btn-sm text-secondary session-delete-btn" title="Delete Session" onclick="deleteSession(event, '${s.session_id}')">
@@ -103,10 +105,13 @@ async function loadSessionsList() {
                 `;
                 list.appendChild(div);
             });
+
+            return sessions;
         }
     } catch (e) {
         console.error('Error loading sessions', e);
     }
+    return [];
 }
 
 async function loadTicketsCount() {
@@ -448,13 +453,21 @@ async function deleteSession(event, sessionId) {
         });
 
         if (response.ok) {
-            // If the deleted session was currently active, start a fresh session or load another
-            if (sessionId === currentSessionId) {
-                localStorage.removeItem('techmart_session');
-                currentSessionId = null;
-                await startNewSession();
-            } else {
-                await loadSessionsList();
+            const wasActive = (sessionId === currentSessionId);
+
+            // Fetch and render the updated session list
+            const remainingSessions = await loadSessionsList();
+
+            if (wasActive) {
+                if (remainingSessions && remainingSessions.length > 0) {
+                    // Switch to the first remaining session (new top session)
+                    await loadSession(remainingSessions[0].session_id);
+                } else {
+                    // No sessions left at all, start fresh clean session
+                    localStorage.removeItem('techmart_session');
+                    currentSessionId = null;
+                    await startNewSession();
+                }
             }
         } else {
             const err = await response.json();
