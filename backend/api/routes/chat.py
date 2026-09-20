@@ -333,13 +333,6 @@ def delete_session(
     current_user: User = Depends(get_current_user),
     db: DBSession = Depends(get_db),
 ):
-    # Verify session belongs to user
-    session_record = (
-        db.query(UserSession)
-        .filter(UserSession.session_id == session_id, UserSession.user_id == current_user.id)
-        .first()
-    )
-
     # Delete conversation messages for this session
     deleted_msgs = (
         db.query(Conversation)
@@ -347,9 +340,18 @@ def delete_session(
         .delete(synchronize_session=False)
     )
 
-    # Delete session record if it exists
-    if session_record:
-        db.delete(session_record)
+    # Delete session record
+    deleted_sessions = (
+        db.query(UserSession)
+        .filter(UserSession.session_id == session_id, UserSession.user_id == current_user.id)
+        .delete(synchronize_session=False)
+    )
+
+    # Unlink session_id from any tickets associated with this session so tickets are preserved
+    db.query(Ticket).filter(
+        Ticket.session_id == session_id,
+        Ticket.user_id == current_user.id
+    ).update({"session_id": None}, synchronize_session=False)
 
     db.commit()
 
