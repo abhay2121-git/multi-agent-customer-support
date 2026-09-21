@@ -129,8 +129,8 @@ customer-support-ai/
 | Production Ready | Configured for Render backend deployment with `Procfile`, graceful env fallbacks, and strict CORS handling. |
 
 ## 🌐 Deployment
-- **Frontend Live Demo**: [https://yourusername.github.io/customer-support-ai/](https://yourusername.github.io/customer-support-ai/)
-- **Backend API URL**: [https://techmart-support-ai.onrender.com](https://techmart-support-ai.onrender.com)
+- **Frontend Live Demo**: [https://multi-agent-customer-support-pi1h.onrender.com/frontend/login.html](https://multi-agent-customer-support-pi1h.onrender.com/frontend/login.html)
+- **Backend API URL**: [https://multi-agent-customer-support-pi1h.onrender.com/](https://multi-agent-customer-support-pi1h.onrender.com)
 
 ## 🌐 Multilingual Support
 - Supports English, Hindi (Devanagari), and Hinglish
