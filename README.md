@@ -137,4 +137,4 @@ customer-support-ai/
 - Dynamic language adaptation mid-conversation
 - Users can switch language style without restarting session
 - Handles code-switched queries naturally 
-  (e.g. "mera payment ho gaya but status update nahi hua")
+  (e.g. "mera payment ho gaya but status update nahi hua.")
