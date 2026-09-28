@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
-    DATABASE_URL: str = "sqlite:///./techmart_dev.db"
+    DATABASE_URL: str = "postgresql+psycopg://postgres:postgres@localhost:5432/multi_agent_customer_support"
     SECRET_KEY: str = "your-secret-key-change-this-in-production"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
