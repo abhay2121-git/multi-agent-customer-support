@@ -37,8 +37,12 @@ class Settings(BaseSettings):
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
     def fix_postgres_url(cls, v: str) -> str:
-        if isinstance(v, str) and v.startswith("postgres://"):
-            return v.replace("postgres://", "postgresql://", 1)
+        if isinstance(v, str):
+            # Normalize all postgres:// and postgresql:// variants to use psycopg v3 driver
+            if v.startswith("postgres://"):
+                v = v.replace("postgres://", "postgresql+psycopg://", 1)
+            elif v.startswith("postgresql://") and "+psycopg" not in v:
+                v = v.replace("postgresql://", "postgresql+psycopg://", 1)
         return v
 
     @field_validator("ALLOWED_ORIGINS", mode="before")
