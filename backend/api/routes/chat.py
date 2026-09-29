@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session as DBSession
 from sqlalchemy import func as sa_func
 
+from backend.agents.base_agent import clean_plain_text
 from backend.agents.router import route_and_respond
 from backend.auth_utils import get_current_user, generate_session_id
 from backend.database.connection import get_db
@@ -109,6 +110,7 @@ def send_message(
                 "context_sources": [],
             }
 
+        result["response"] = clean_plain_text(result.get("response", ""))
 
         agents_str = ", ".join(result.get("agents_used", []))
         intents_str = ", ".join(result.get("intents_detected", []))

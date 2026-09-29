@@ -1,4 +1,5 @@
 import logging
+from backend.agents.base_agent import clean_plain_text
 from backend.agents.intent_detector import detect_intent
 from backend.agents.billing import billing_agent
 from backend.agents.technical import technical_agent
@@ -52,7 +53,8 @@ def route_and_respond(message: str, conversation_history: list[dict], session_id
             "You are TechMart Customer Support. Combine the expert inputs below into one concise, easy-to-read answer for the customer.\n"
             "Rules:\n"
             "- Keep the response brief, clear, and easy to interpret (under 120-150 words).\n"
-            "- Use short bullet points or numbered steps with bold headers.\n"
+            "- Output in plain text only. NEVER use markdown asterisks (no ** or *), bolding, or header hashes (#).\n"
+            "- Use short plain bullet points (-) or numbered steps (1., 2.) without asterisks.\n"
             "- Do not repeat overlapping information.\n"
             "- If user details are needed, ask for only 1 or 2 essential items.\n\n"
             "Expert Inputs:\n"
@@ -68,6 +70,8 @@ def route_and_respond(message: str, conversation_history: list[dict], session_id
             temperature=0.3,
             max_tokens=350,
         )
+
+    final_response = clean_plain_text(final_response)
 
         
     logger.info(f"Session {session_id} - Routing decision: Used {agent_names}")

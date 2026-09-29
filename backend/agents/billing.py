@@ -14,7 +14,7 @@ class BillingAgent(BaseAgent):
             "Guidelines:\n"
             "- Be empathetic, reassuring, and concise.\n"
             "- If payment was deducted but not marked: explain that it may take a few minutes or 3-5 business days for bank settlement, and ask only for the Order ID or Transaction ID to check.\n"
-            "- Use short bullet points and bold keywords for quick reading."
+            "- Use short plain bullet points without asterisks or bolding."
         )
 
 billing_agent = BillingAgent()

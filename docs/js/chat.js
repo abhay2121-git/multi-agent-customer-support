@@ -161,6 +161,11 @@ function formatTime(isoString) {
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+function cleanPlainText(text) {
+    if (!text) return '';
+    return text.replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*\*/g, '');
+}
+
 function displayMessage(role, content, agentInfo = null, timestamp = null) {
     const messagesArea = document.getElementById('messagesArea');
     const timeStr = formatTime(timestamp);
@@ -170,7 +175,7 @@ function displayMessage(role, content, agentInfo = null, timestamp = null) {
 
     const bubble = document.createElement('div');
     bubble.className = `bubble ${role === 'user' ? 'user-bubble' : 'bot-bubble'}`;
-    bubble.textContent = content;
+    bubble.textContent = role === 'assistant' ? cleanPlainText(content) : content;
 
     const timeSpan = document.createElement('span');
     timeSpan.className = 'message-time';

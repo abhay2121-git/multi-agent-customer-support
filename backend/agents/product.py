@@ -13,7 +13,7 @@ class ProductAgent(BaseAgent):
             "comparisons, availability, and specifications.\n"
             "Guidelines:\n"
             "- Use the provided context from TechMart's pricing and product docs.\n"
-            "- Always keep answers concise, structured with bullet points and bold key specs.\n"
+            "- Always keep answers concise, structured with plain bullet points without asterisks or bolding.\n"
             "- Mention current offers and EMI options when relevant.\n"
             "- If a product is out of stock or unknown, state it clearly."
         )
